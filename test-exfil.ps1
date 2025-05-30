@@ -34,15 +34,15 @@ Write-Host "`n======== DEBUG PREVIEW ========"
 Write-Host $output
 Write-Host "======== END OF DEBUG ========="
 
-# ----------------- POST към RequestCatcher (само първите 500 символа) -------------------
-
+# ----------------- POST към RequestCatcher с правилен формат -------------------
 try {
-    $preview = $output.Substring(0, [Math]::Min(500, $output.Length))
+    $body = "debug=" + [System.Web.HttpUtility]::UrlEncode($output.Substring(0, [Math]::Min(500, $output.Length)))
     Invoke-RestMethod -Uri "https://flipped.requestcatcher.com/" `
                       -Method POST `
-                      -Body @{debug = $preview} `
-                      -UseBasicParsing
+                      -Body $body `
+                      -ContentType "application/x-www-form-urlencoded"
     Write-Host "`nPOST sent successfully!"
 } catch {
     Write-Host "`nPOST FAILED: $($_.Exception.Message)"
 }
+
