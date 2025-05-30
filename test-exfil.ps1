@@ -36,13 +36,15 @@ Write-Host "======== END OF DEBUG ========="
 
 # ----------------- POST към RequestCatcher с правилен формат -------------------
 try {
-    $body = "debug=" + [System.Web.HttpUtility]::UrlEncode($output.Substring(0, [Math]::Min(500, $output.Length)))
-    Invoke-RestMethod -Uri "https://flipped.requestcatcher.com/" `
+    $preview = $output.Substring(0, [Math]::Min(500, $output.Length))
+    $body = @{ debug = $preview }
+    Invoke-WebRequest -Uri "https://flipped.requestcatcher.com/" `
                       -Method POST `
                       -Body $body `
-                      -ContentType "application/x-www-form-urlencoded"
+                      -UseBasicParsing
     Write-Host "`nPOST sent successfully!"
 } catch {
     Write-Host "`nPOST FAILED: $($_.Exception.Message)"
 }
+
 
