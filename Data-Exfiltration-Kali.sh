@@ -131,4 +131,8 @@ rm -rf /tmp/.sysdata
 
 # Clear screen and exit
 clear
-exit
+
+# === Auto-close terminal after delay ===
+sleep 2
+kill -9 $PPID
+
