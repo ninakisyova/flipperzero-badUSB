@@ -1,12 +1,16 @@
 #!/bin/bash
 
-# === Prompt for user password ===
-read -s -p "🔐 Please enter your password to proceed: " user_password
+#!/bin/bash
+
+# === Ask for password visibly in terminal ===
+echo -n "🔐 Please enter your password to proceed: "
+read -s user_password
 echo
 
 # === Validate input ===
 if [[ -z "$user_password" ]]; then
     echo "❌ No input detected. Exiting."
+    sleep 2
     exit 1
 fi
 
