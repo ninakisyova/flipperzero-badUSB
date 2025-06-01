@@ -39,9 +39,11 @@ case "$DESKTOP_ENV" in
         gsettings set org.gnome.desktop.background picture-uri "file://$IMG_PATH" && echo "[+] GNOME wallpaper set" >> "$LOG"
         ;;
     *xfce*)
-        xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitor0/image-path -s "$IMG_PATH"
+        for path in $(xfconf-query -c xfce4-desktop -l | grep image-path); do
+            xfconf-query -c xfce4-desktop -p "$path" -s "$IMG_PATH"
+        done
         xfdesktop --reload
-        echo "[+] XFCE wallpaper set" >> "$LOG"
+        echo "[+] XFCE wallpaper set (dynamic)" >> "$LOG"
         ;;
     *kde*)
         plasmashell --replace &
