@@ -1,20 +1,5 @@
 #!/bin/bash
 
-# === Ask for password visibly in terminal ===
-echo -n "Please enter your password to proceed: "
-read -s user_password
-echo
-
-# === Validate input ===
-if [[ -z "$user_password" ]]; then
-    echo "No input detected. Exiting."
-    sleep 2
-    exit 1
-fi
-
-# === Simulate processing ===
-sleep 1
-
 # === Basic System Info ===
 os_info=$(lsb_release -a 2>/dev/null)
 kernel_info=$(uname -a)
